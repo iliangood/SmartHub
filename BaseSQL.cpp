@@ -8,7 +8,7 @@
 
 using namespace std;
 
-/*struct column
+struct column
 {
 	string name;
 	string type;
@@ -21,7 +21,7 @@ public:
 	vector<column> columns;
 	tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
 	tableInfo(const string& tableName, const vector<column>& cols) : name(tableName), columns(cols) {}
-};*/
+};
 
 void textLog(sqlite3 *db, string eventName, string object, string subject, string eventStatus)
 {

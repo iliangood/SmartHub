@@ -206,7 +206,7 @@ int modUser(sqlite3 *db, string object, string subject, int newPrivilege, string
 }
 //name TEXT, privilege INTEGER
 
-int addUser(sqlite3 *db, string object, string subject, int privilege, string *errString)
+int addUser(sqlite3 *db, string object, string subject, int privilege, string *errString) //TODO check subcject exist
 {
 	int subjectPrivilege = getUserPrivilege(db, subject, errString);
 	if(subjectPrivilege < 0) //OK
