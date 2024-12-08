@@ -4,29 +4,13 @@
 #include <ctime>
 #include <vector>
 #include <initializer_list>
+#include "BaseSQL.h"
 
 using namespace std;
 
 #define ADD_USER_MIN_PRIVILEGE 100
 #define MOD_USER_MIN_PRIVILEGE 100
 FILE* file;
-
-struct column
-{
-	string name;
-	string type;
-	column(const string& name, const string& type) : name(name), type(type) {}
-};
-
-class tableInfo {
-public:
-	string name;
-	vector<column> columns;
-	tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
-	tableInfo(const string& tableName, const vector<column>& cols) : name(tableName), columns(cols) {}
-};
-//id INTEGER PRIMARY KEY, eventName TEXT, object TEXT, subject TEXT, eventStatus TEXT, eventDateTime TEXT
-tableInfo LogInfo("Log", {column("id", "INTEGER"), column("eventName", "TEXT"), column("object", "TEXT"), column("subject", "TEXT"), column("eventStatus", "TEXT"), column("eventDateTime", "TEXT")});
 
 int getAddUserMinPrivilege()
 {
@@ -38,45 +22,7 @@ int getModUserMinPrivilege()
 	return MOD_USER_MIN_PRIVILEGE;
 }
 
-void textLog(sqlite3 *db, string eventName, string object, string subject, string eventStatus)
-{
-	printf("SQLite error:%s ", sqlite3_errmsg(db));
-	time_t now = time(0);
-	printf("Data: {\neventName = %s\nobject = %s\nsubject = %s\neventStatus = %s\neventDateTime = %s}\n", eventName.c_str(), object.c_str(), subject.c_str(), eventStatus.c_str(),ctime(&now));
-}
 
-int Log(sqlite3 *db, string eventName, string object, string subject, string eventStatus, string *errString)
-{
-	sqlite3_stmt *res;
-	int rc = sqlite3_prepare_v2(db, "INSERT INTO Log(eventName, object, subject, eventStatus, eventDateTime) VALUES(?, ?, ?, ?, ?)", -1, &res, 0);
-	if(rc != SQLITE_OK) //OK
-	{
-		textLog(db, eventName, object, subject, eventStatus);
-		errString->append("_Log-FAIL_ERROR-SQLite:" + string(sqlite3_errmsg(db)));
-		sqlite3_finalize(res);
-		return -1;
-	}
-	time_t now = time(0);
-	char time[30];
-	strftime(time, 30, "%Y-%m-%d %H:%M:%S", localtime(&now));
-	if((sqlite3_bind_text(res, 1, eventName.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) &&
-	(sqlite3_bind_text(res, 2, object.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) &&
-	(sqlite3_bind_text(res, 3, subject.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) &&
-	(sqlite3_bind_text(res, 4, eventStatus.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) &&
-	(sqlite3_bind_text(res, 5, time, -1, SQLITE_STATIC)) == SQLITE_OK) //OK
-	{
-		if(sqlite3_step(res) == SQLITE_DONE)
-		{
-			errString->append("_Log-OK");
-			sqlite3_finalize(res);
-			return 0;
-		}
-	}
-	errString->append("_Log-FAIL_ERROR-SQLite:" + string(sqlite3_errmsg(db)));
-	textLog(db, eventName, object, subject, eventStatus);
-	sqlite3_finalize(res);
-	return -2;
-}
 
 int userCount(sqlite3 * db, string userName, string *errString)
 {
@@ -322,93 +268,7 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 	return 0;
 }
 
-int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *errString)
-{
-	sqlite3_stmt *res;
-	int rc = sqlite3_prepare_v2(db, "SELECT name, type FROM pragma_table_info(?)", -1, &res, 0);
-	if(rc != SQLITE_OK) //OK
-	{
-		const char *errmsg = sqlite3_errmsg(db);
-		Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR:SQLite:" + string(errmsg), errString);
-		errString->append("_checkTable-FAIL_ERROR-SQLite:" + string(errmsg));
-		sqlite3_finalize(res);
-		return -1;
-	}
-	rc = sqlite3_bind_text(res, 1, tableName.c_str(), -1, SQLITE_STATIC);
-	if(rc != SQLITE_OK) //TODO
-	{
-		const char *errmsg = sqlite3_errmsg(db);
-		Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR-SQLite:" + string(errmsg), errString);
-		errString->append("_checkTable-FAIL_ERROR-SQLite:" + string(errmsg));
-		sqlite3_finalize(res);
-		return -2;
-	}
-	for(int i = 0; i < columns.size(); i++)
-	{
-		rc = sqlite3_step(res);
-		if(rc == SQLITE_ROW)
-		{
-			if(string(reinterpret_cast<const char*>(sqlite3_column_text(res, 0))) != columns[i].name) //OK
-			{
-				Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:column name is not equal to expected(\"" +
-				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 0))) + "\" != \"" + columns[i].name + "\")", errString);
-				errString->append("_checkTable-FAIL:column name is not equal to expected(\"" +
-				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 0))) + "\" != \"" + columns[i].name + "\")");
-				sqlite3_finalize(res);
-				return -3;
-			}
-			if(string(reinterpret_cast<const char*>(sqlite3_column_text(res, 1))) != columns[i].type) //OK
-			{
-				Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:column type is not equal to expected(\"" +
-				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 1))) + "\" != \"" + columns[i].type + "\")", errString);
-				errString->append("_checkTable-FAIL:column type is not equal to expected(\"" +
-				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 1))) + "\" != \"" + columns[i].type + "\")");
-				sqlite3_finalize(res);
-				return -4;
-			}
-		}
-		else if(rc == SQLITE_DONE) //OK
-		{
-			Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:number of columns is less than expected", errString);
-			errString->append("_checkTable-FAIL:number of columns is less than expected");
-			sqlite3_finalize(res);
-			return -5;
-		}
-		else
-		{
-			const char *errmsg = sqlite3_errmsg(db);
-			Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR-SQLite:" + string(errmsg), errString);
-			errString->append("_checkTable-FAIL_ERROR-SQLite:" + string(errmsg));
-			sqlite3_finalize(res);
-			return -6; //TODO
-		}
-	}
-	rc = sqlite3_step(res);
-	if(rc == SQLITE_DONE) //OK
-	{
-		Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "OK", errString);
-		errString->append("_checkTable-OK");
-		sqlite3_finalize(res);
-		return 1;
-	}
-	if(rc == SQLITE_ROW) //OK
-	{
-		Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:the number of columns is greater than expected", errString);
-		errString->append("_checkTable-FAIL:the number of columns is greater than expected");
-		sqlite3_finalize(res);
-		return -7;
-	}
-	const char *errmsg = sqlite3_errmsg(db);
-	Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL:SQLite error:" + string(errmsg), errString);
-	errString->append("_checkTable-SQLiteError:" + string(errmsg));
-	sqlite3_finalize(res);
-	return -8; //TODO
-}
 
-int checkTable(sqlite3 *db, tableInfo table, string *errString)
-{
-	return checkTable(db, table.name, table.columns, errString);
-}
 
 int init(sqlite3 *db)
 {
@@ -422,10 +282,12 @@ int main()
 	char *err_msg = 0;
 	int rc;
 	string errString;
-	rc = sqlite3_open("db.db", &db);
-	if(rc == SQLITE_OK)
+	if(initBaseSQL(&db, "db.db", &errString) == 0)
 	{
-		cout << checkTable(db, LogInfo, &errString) << endl;
+		string creator, username;
+		int privilege;
+		cin>>creator>>username>>privilege;
+		addUser(db, username ,creator, privilege, &errString);
 	}
 	cout << errString << endl;
 	sqlite3_close(db);
