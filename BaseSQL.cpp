@@ -8,20 +8,10 @@
 
 using namespace std;
 
-struct column
-{
-	string name;
-	string type;
-	column(const string& name, const string& type) : name(name), type(type) {}
-};
+column::column(const string& name, const string& type) : name(name), type(type) {}
 
-class tableInfo {
-public:
-	string name;
-	vector<column> columns;
-	tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
-	tableInfo(const string& tableName, const vector<column>& cols) : name(tableName), columns(cols) {}
-};
+tableInfo::tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
+tableInfo::tableInfo(const string& tableName, const vector<column>& cols) : name(tableName), columns(cols) {}
 
 void textLog(sqlite3 *db, string eventName, string object, string subject, string eventStatus)
 {
@@ -62,6 +52,7 @@ int Log(sqlite3 *db, string eventName, string object, string subject, string eve
 	sqlite3_finalize(res);
 	return -2;
 }
+
 int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *errString)
 {
 	sqlite3_stmt *res;
@@ -161,11 +152,17 @@ int initBaseSQL(sqlite3 **db, string databaseName, string *errString)
 		errString->append("_initBaseSQL-FAIL_ERROR-SQLite");
 		return -1;
 	}
-	if(checkTable(*db, LogInfo, errString) != 1)
+	if(checkTable(*db, LogInfo, errString) > 1)
 	{
 		textLog(*db, "initBaseSQL", "TABLE:Log", "SYSTEM", "FAIL:table in an unexpected way");
 		errString->append("_initBaseSQL-FAIL:table in an unexpected way");
 		return -2;
+	}
+	if(checkTable(*db, LogInfo, errString) > 1)
+	{
+		textLog(*db, "initBaseSQL", "TABLE:Log", "SYSTEM", "FAIL_ERROR-checkTable:");
+		errString->append("_initBaseSQL-FAIL:table in an unexpected way");
+		return -3;
 	}
 	Log(*db, "initBaseSQL", "DATABASE", "SYSTEM", "OK", errString);
 	errString->append("_initBaseSQL-OK");

@@ -10,19 +10,18 @@
 
 using namespace std;
 
-struct column;/* {
-    string name;
-    string type;
-    column(const string& name, const string& type) : name(name), type(type) {}
-};*/
+struct column {
+	string name;
+	string type;
+	column(const string& name, const string& type);
+};
 
-class tableInfo;/* {
-public:
-    string name;
-    vector<column> columns;
-    tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
-    tableInfo(const string& tableName, const vector<column>& cols) : name(tableName), columns(cols) {}
-};*/
+struct tableInfo {
+	string name;
+	vector<column> columns;
+	tableInfo(const string& tableName, const initializer_list<column>& cols);
+	tableInfo(const string& tableName, const vector<column>& cols);
+};
 
 void textLog(sqlite3 *db, string eventName, string object, string subject, string eventStatus);
 

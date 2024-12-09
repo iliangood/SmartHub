@@ -206,33 +206,52 @@ int modUser(sqlite3 *db, string object, string subject, int newPrivilege, string
 }
 //name TEXT, privilege INTEGER
 
-int addUser(sqlite3 *db, string object, string subject, int privilege, string *errString) //TODO check subcject exist
+int addUser(sqlite3 *db, string object, string subject, int privilege, string *errString)
 {
+	int countSubject = userCount(db, subject, errString);
+	if(countSubject < 0)
+	{
+		Log(db, "addUser", object, subject, "FAIL_ERROR-userCount:" + to_string(countSubject), errString);
+		errString->append("_addUser-FAIL_ERROR-userCount:" + to_string(countSubject));
+		return -1;
+	}
+	if(countSubject == 0)
+	{
+		Log(db, "addUser", object, subject, "FAIL:user is not exist", errString);
+		errString->append("_addUser-FAIL:user is not exist");
+		return -2;
+	}
+	if(countSubject > 1)
+	{
+		Log(db, "addUser", object, subject, "FAIL:there are a few users with that name", errString);
+		errString->append("_addUser-FAIL:there are a few users with that name");
+		return -3;
+	}
 	int subjectPrivilege = getUserPrivilege(db, subject, errString);
 	if(subjectPrivilege < 0) //OK
 	{
-		Log(db, "addUser", object, subject, "FAIL_ERROR:getUserPrivilege:" + to_string(subjectPrivilege), errString);
+		Log(db, "addUser", object, subject, "FAIL_ERROR-getUserPrivilege:" + to_string(subjectPrivilege), errString);
 		errString->append("_addUser-FAIL_ERROR-getUserPrivilege:" + to_string(subjectPrivilege));
-		return -1;
+		return -4;
 	}
 	if(subjectPrivilege < getAddUserMinPrivilege() || subjectPrivilege < privilege) //OK
 	{
 		Log(db, "addUser", object, subject, "FAIL:the user does not have enough privileges", errString);
 		errString->append("_addUser-FAIL:the user does not have enough privileges");
-		return -2;
+		return -5;
 	}
 	int count = userCount(db, object, errString);
 	if(count > 0) //OK
 	{
 		Log(db, "addUser", object, subject, "FAIL:this username is already in use", errString);
 		errString->append("_addUser-FAIL:this username is already in use");
-		return -3;
+		return -6;
 	}
 	else if(count < 0) //OK
 	{
 		Log(db, "addUser", object, subject, "FAIL_ERROR-userCount:" + to_string(count), errString);
 		errString->append("_addUser-FAIL_ERROR-userCount:" + to_string(count));
-		return -4;
+		return -6;
 	}
 	sqlite3_stmt *res;
 	int rc = sqlite3_prepare_v2(db,"INSERT INTO users(name, privilege) VALUES(?, ?)", -1, &res, 0);
@@ -242,7 +261,7 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 		Log(db, "addUser", object, subject, "FAIL_ERROR:SQLite:" + string(errmsg), errString);
 		errString->append("_addUser-FAIL_ERROR-SQLite:" + string(errmsg));
 		sqlite3_finalize(res);
-		return -5;
+		return -7;
 	}
 	if(!((sqlite3_bind_text(res, 1, object.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) &&
 	(sqlite3_bind_int(res, 2, privilege) == SQLITE_OK))) //OK
@@ -251,7 +270,7 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 		Log(db, "addUser", object, subject, "FAIL_ERROR-SQLite:" + string(errmsg), errString);
 		errString->append("_addUser-FAIL_ERROR-SQLite:" + string(errmsg));
 		sqlite3_finalize(res);
-		return -6;
+		return -8;
 	}
 	rc = sqlite3_step(res);
 	if(rc != SQLITE_DONE) //TODO
@@ -260,7 +279,7 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 		Log(db, "addUser", object, subject, "FAIL_ERROR-SQLite:" + string(errmsg), errString);
 		errString->append("_addUser-FAIL_ERROR-SQLite:" + string(errmsg));
 		sqlite3_finalize(res);
-		return -7;
+		return -9;
 	}
 	Log(db, "addUser", object, subject, "OK", errString); //OK
 	errString->append("_addUser-OK");
@@ -269,9 +288,17 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 }
 
 
-
-int init(sqlite3 *db)
+tableInfo usersInfo("users", {column("id", "INTEGER"), column("name", "TEXT"), column("privilege", "INTEGER")});
+int initTgSQL(sqlite3 *db, string *errString)
 {
+	if(checkTable(db, usersInfo, errString) != 1)
+	{
+		textLog(db, "initBaseSQL", "TABLE:users", "SYSTEM", "FAIL:table in an unexpected way");
+		errString->append("_initBaseSQL-FAIL:table in an unexpected way");
+		return -1;
+	}
+	Log(db, "initTgSQL", "DATABASE", "SYSTEM", "OK", errString);
+	errString->append("_initTgSQL-OK");
 	return 0;
 }
 //eventName, object, subject, eventStatus, eventDateTime
@@ -282,13 +309,20 @@ int main()
 	char *err_msg = 0;
 	int rc;
 	string errString;
-	if(initBaseSQL(&db, "db.db", &errString) == 0)
+	if(initBaseSQL(&db, "db.db", &errString) != 0)
 	{
-		string creator, username;
-		int privilege;
-		cin>>creator>>username>>privilege;
-		addUser(db, username ,creator, privilege, &errString);
+		cout << errString << endl;
+		sqlite3_close(db);
 	}
+	if(initTgSQL(db, &errString) != 0)
+	{
+		cout << errString << endl;
+		sqlite3_close(db);
+	}
+	string creator, username;
+	int privilege;
+	cin>>creator>>username>>privilege;
+	addUser(db, username ,creator, privilege, &errString);
 	cout << errString << endl;
 	sqlite3_close(db);
 	return 0;
