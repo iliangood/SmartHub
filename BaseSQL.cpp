@@ -86,7 +86,7 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 				errString->append("_checkTable-FAIL:column name is not equal to expected(\"" +
 				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 0))) + "\" != \"" + columns[i].name + "\")");
 				sqlite3_finalize(res);
-				return -3;
+				return 1;
 			}
 			if(string(reinterpret_cast<const char*>(sqlite3_column_text(res, 1))) != columns[i].type) //OK
 			{
@@ -95,15 +95,15 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 				errString->append("_checkTable-FAIL:column type is not equal to expected(\"" +
 				string(reinterpret_cast<const char*>(sqlite3_column_text(res, 1))) + "\" != \"" + columns[i].type + "\")");
 				sqlite3_finalize(res);
-				return -4;
+				return 2;
 			}
 		}
 		else if(rc == SQLITE_DONE) //OK
 		{
-			Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:number of columns is less than expected", errString);
-			errString->append("_checkTable-FAIL:number of columns is less than expected");
+			Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "OK", errString);
+			errString->append("_checkTable-OK");
 			sqlite3_finalize(res);
-			return -5;
+			return 3;
 		}
 		else
 		{
@@ -120,14 +120,14 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 		Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "OK", errString);
 		errString->append("_checkTable-OK");
 		sqlite3_finalize(res);
-		return 1;
+		return 0;
 	}
 	if(rc == SQLITE_ROW) //OK
 	{
 		Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:the number of columns is greater than expected", errString);
 		errString->append("_checkTable-FAIL:the number of columns is greater than expected");
 		sqlite3_finalize(res);
-		return -7;
+		return 4;
 	}
 	const char *errmsg = sqlite3_errmsg(db);
 	Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR-SQLite:" + string(errmsg), errString);
