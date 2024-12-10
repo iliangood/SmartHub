@@ -8,6 +8,8 @@
 
 using namespace std;
 
+FILE* textLogFile; //for future use by the textLog function
+
 column::column(const string& name, const string& type) : name(name), type(type) {}
 
 tableInfo::tableInfo(const string& tableName, const initializer_list<column>& cols) : name(tableName), columns(cols) {}
@@ -100,8 +102,8 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 		}
 		else if(rc == SQLITE_DONE) //OK
 		{
-			Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "OK", errString);
-			errString->append("_checkTable-OK");
+			Log(db, "checkTable", "TABLE:" + tableName, "SYSTEM", "FAIL:the number of columns is lesser than expected", errString);
+			errString->append("_checkTable-FAIL:the number of columns is lesser than expected");
 			sqlite3_finalize(res);
 			return 3;
 		}
@@ -111,7 +113,7 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 			Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR-SQLite:" + string(errmsg), errString);
 			errString->append("_checkTable-FAIL_ERROR-SQLite:" + string(errmsg));
 			sqlite3_finalize(res);
-			return -6; //TODO
+			return -3; //TODO
 		}
 	}
 	rc = sqlite3_step(res);
@@ -133,7 +135,7 @@ int checkTable(sqlite3 *db, string tableName, vector<column> columns, string *er
 	Log(db, "checkTable", "TABLE:"+ tableName, "SYSTEM", "FAIL_ERROR-SQLite:" + string(errmsg), errString);
 	errString->append("_checkTable-FAIL_ERROR-SQLite:" + string(errmsg));
 	sqlite3_finalize(res);
-	return -8; //TODO
+	return -4; //TODO
 }
 
 int checkTable(sqlite3 *db, tableInfo table, string *errString)
@@ -142,7 +144,6 @@ int checkTable(sqlite3 *db, tableInfo table, string *errString)
 }
 
 tableInfo LogInfo("Log", {column("id", "INTEGER"), column("eventName", "TEXT"), column("object", "TEXT"), column("subject", "TEXT"), column("eventStatus", "TEXT"), column("eventDateTime", "TEXT")});
-//int Log(sqlite3 *db, string eventName, string object, string subject, string eventStatus, string *errString)
 
 int initBaseSQL(sqlite3 **db, string databaseName, string *errString)
 {
@@ -152,13 +153,14 @@ int initBaseSQL(sqlite3 **db, string databaseName, string *errString)
 		errString->append("_initBaseSQL-FAIL_ERROR-SQLite");
 		return -1;
 	}
-	if(checkTable(*db, LogInfo, errString) > 1)
+	int rc = checkTable(*db, LogInfo, errString);
+	if(rc > 0)
 	{
 		textLog(*db, "initBaseSQL", "TABLE:Log", "SYSTEM", "FAIL:table in an unexpected way");
 		errString->append("_initBaseSQL-FAIL:table in an unexpected way");
 		return -2;
 	}
-	if(checkTable(*db, LogInfo, errString) > 1)
+	if(rc < 0)
 	{
 		textLog(*db, "initBaseSQL", "TABLE:Log", "SYSTEM", "FAIL_ERROR-checkTable:");
 		errString->append("_initBaseSQL-FAIL:table in an unexpected way");

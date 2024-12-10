@@ -10,7 +10,6 @@ using namespace std;
 
 #define ADD_USER_MIN_PRIVILEGE 100
 #define MOD_USER_MIN_PRIVILEGE 100
-FILE* file;
 
 int getAddUserMinPrivilege()
 {
@@ -21,8 +20,6 @@ int getModUserMinPrivilege()
 {
 	return MOD_USER_MIN_PRIVILEGE;
 }
-
-
 
 int userCount(sqlite3 * db, string userName, string *errString)
 {
@@ -204,7 +201,6 @@ int modUser(sqlite3 *db, string object, string subject, int newPrivilege, string
 	sqlite3_finalize(res);
 	return -9;
 }
-//name TEXT, privilege INTEGER
 
 int addUser(sqlite3 *db, string object, string subject, int privilege, string *errString)
 {
@@ -291,17 +287,23 @@ int addUser(sqlite3 *db, string object, string subject, int privilege, string *e
 tableInfo usersInfo("users", {column("id", "INTEGER"), column("name", "TEXT"), column("privilege", "INTEGER")});
 int initTgSQL(sqlite3 *db, string *errString)
 {
-	if(checkTable(db, usersInfo, errString) != 1)
+	int rc = checkTable(db, usersInfo, errString);
+	if(rc > 0)
 	{
-		textLog(db, "initBaseSQL", "TABLE:users", "SYSTEM", "FAIL:table in an unexpected way");
-		errString->append("_initBaseSQL-FAIL:table in an unexpected way");
+		textLog(db, "initTgSQL", "TABLE:users", "SYSTEM", "FAIL:table in an unexpected way");
+		errString->append("_initTgSQL-FAIL:table in an unexpected way");
+		return 1;
+	}
+	if(rc < 0)
+	{
+		textLog(db, "initTgSQL", "TABLE:users", "SYSTEM", "FAIL_ERROR-ckeckTable:" + to_string(rc));
+		errString->append("_initTgSQLFAIL_ERROR-ckeckTable:" + to_string(rc));
 		return -1;
 	}
 	Log(db, "initTgSQL", "DATABASE", "SYSTEM", "OK", errString);
 	errString->append("_initTgSQL-OK");
 	return 0;
 }
-//eventName, object, subject, eventStatus, eventDateTime
 
 int main()
 {
@@ -313,11 +315,13 @@ int main()
 	{
 		cout << errString << endl;
 		sqlite3_close(db);
+		return 1;
 	}
 	if(initTgSQL(db, &errString) != 0)
 	{
 		cout << errString << endl;
 		sqlite3_close(db);
+		return 2;
 	}
 	string creator, username;
 	int privilege;
