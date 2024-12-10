@@ -6,4 +6,8 @@ find_package(SQLite3 REQUIRED)
 
 add_executable(test TgSQL.cpp)
 
-target_link_libraries(test PRIVATE SQLite::SQLite3)
+add_library(BaseSQL STATIC BaseSQL.cpp BaseSQL.h)
+
+target_link_libraries(BaseSQL PRIVATE SQLite::SQLite3)
+
+target_link_libraries(test PRIVATE SQLite::SQLite3 BaseSQL)
