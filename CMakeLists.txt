@@ -10,10 +10,14 @@ find_package(SQLite3 REQUIRED)
 
 include_directories(headers)
 
-add_executable(test src/SQL/TgSQL.cpp)
-
 add_library(BaseSQL STATIC src/SQL/BaseSQL.cpp headers/SQL/BaseSQL.h)
+
+add_library(TgSQL STATIC src/SQL/TgSQL.cpp headers/SQL/TgSQL.h)
+
+add_library(events STATIC src/events.cpp headers/events.h)
+
+add_executable(main src/main.cpp)
 
 target_link_libraries(BaseSQL PRIVATE SQLite::SQLite3)
 
-target_link_libraries(test PRIVATE SQLite::SQLite3 BaseSQL)
+target_link_libraries(TgSQL PRIVATE SQLite::SQLite3 BaseSQL)

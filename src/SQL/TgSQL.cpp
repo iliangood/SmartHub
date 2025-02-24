@@ -6,6 +6,8 @@
 #include <initializer_list>
 #include "SQL/BaseSQL.h"
 
+#include "SQL/TgSQL.h"
+
 using namespace std;
 
 #define ADD_USER_MIN_PRIVILEGE 100
@@ -369,6 +371,7 @@ int deleteUser(sqlite3 *db, string object, string subject, string *errString)
 }
 
 tableInfo usersInfo("users", {column("id", "INTEGER"), column("userID", "TEXT"), column("privilege", "INTEGER")});
+
 int initTgSQL(sqlite3 *db, string *errString)
 {
 	int rc = checkTable(db, usersInfo, errString);
@@ -389,7 +392,7 @@ int initTgSQL(sqlite3 *db, string *errString)
 	return 0;
 }
 
-int main()
+/*int main()
 {
 	sqlite3 *db;
 	char *err_msg = 0;
@@ -415,4 +418,4 @@ int main()
 	printf("code:%d\n", rc);
 	sqlite3_close(db);
 	return 0;
-}
+}*/
