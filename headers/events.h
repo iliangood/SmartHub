@@ -30,6 +30,7 @@ public:
 
 class eventDispatcher
 {
+public:
     std::vector<eventHandler> handlers;
     long findHandler(std::string eventType);
     long findHandler(event Event);

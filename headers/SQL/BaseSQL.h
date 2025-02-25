@@ -33,4 +33,9 @@ int checkTable(sqlite3 *db, tableInfo table, string *errString);
 
 int initBaseSQL(sqlite3 **db, string databaseName, string *errString);
 
+int createTable(sqlite3 *db, string tableName, vector<column> columns, string *errString);
+
+int createTable(sqlite3 *db, tableInfo table, string *errString);
+
+int dropTable(sqlite3 *db, string tableName, string *errString);
 #endif
